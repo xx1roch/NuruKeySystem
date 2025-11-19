@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NuruKey Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { margin-bottom: 30px; text-align: center; }
+        .controls { background: #2a2a2a; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select, button { padding: 10px; border: none; border-radius: 5px; }
+        button { background: #6a11cb; color: white; cursor: pointer; margin-right: 10px; }
+        button:hover { background: #2575fc; }
+        .keys-list { background: #2a2a2a; padding: 20px; border-radius: 10px; }
+        .key-item { background: #333; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+        .key-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .key-code { font-family: monospace; font-size: 16px; }
+        .key-status { padding: 5px 10px; border-radius: 3px; font-size: 12px; }
+        .status-active { background: green; }
+        .status-expired { background: red; }
+        .status-inactive { background: gray; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>NuruKey Admin Panel</h1>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Duration (days):</label>
+                <input type="number" id="duration" value="30" min="1">
+            </div>
+            <div class="control-group">
+                <label>Number of keys:</label>
+                <input type="number" id="count" value="1" min="1" max="10">
+            </div>
+            <button onclick="generateKeys()">Generate Keys</button>
+            <button onclick="loadKeys()">Refresh List</button>
+        </div>
+        
+        <div class="keys-list">
+            <h3>Generated Keys</h3>
+            <div id="keysContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // ЗАМЕНИ НА СВОЙ ADMIN_KEY из Environment Variables Vercel!
+        const ADMIN_KEY = 'admin123';
+
+        async function generateKeys() {
+            const duration = document.getElementById('duration').value;
+            const count = document.getElementById('count').value;
+            
+            for (let i = 0; i < count; i++) {
+                try {
+                    const response = await fetch('/api/verify', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-admin-key': ADMIN_KEY
+                        },
+                        body: JSON.stringify({
+                            action: 'generate',
+                            duration: parseInt(duration)
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        console.log('Generated key:', data.key);
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Connection error');
+                }
+            }
+            
+            loadKeys();
+        }
+
+        async function loadKeys() {
+            try {
+                const response = await fetch('/api/admin', {
+                    headers: {
+                        'x-admin-key': ADMIN_KEY
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('API error: ' + response.status);
+                }
+                
+                const data = await response.json();
+                displayKeys(data.keys);
+            } catch (error) {
+                console.error('Error loading keys:', error);
+                document.getElementById('keysContainer').innerHTML = 
+                    '<div style="color: red;">Error loading keys: ' + error.message + '</div>';
+            }
+        }
+
+        function displayKeys(keys) {
+            const container = document.getElementById('keysContainer');
+            
+            if (!keys || Object.keys(keys).length === 0) {
+                container.innerHTML = '<div>No keys generated yet</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            Object.entries(keys).forEach(([key, data]) => {
+                const status = Date.now() > data.expires ? 'expired' : 
+                             data.activated ? 'active' : 'inactive';
+                
+                const keyItem = document.createElement('div');
+                keyItem.className = 'key-item';
+                keyItem.innerHTML = `
+                    <div class="key-header">
+                        <div class="key-code">${key}</div>
+                        <div class="key-status status-${status}">${status.toUpperCase()}</div>
+                    </div>
+                    <div>Created: ${new Date(data.createdAt).toLocaleString()}</div>
+                    <div>Expires: ${new Date(data.expires).toLocaleString()}</div>
+                    ${data.activated ? `<div>Activated: ${new Date(data.activatedAt).toLocaleString()}</div>` : ''}
+                    ${data.hwid ? `<div>HWID: ${data.hwid}</div>` : ''}
+                    <button onclick="deleteKey('${key}')" style="margin-top: 10px;">Delete</button>
+                `;
+                
+                container.appendChild(keyItem);
+            });
+        }
+
+        async function deleteKey(key) {
+            if (confirm(`Delete key ${key}?`)) {
+                try {
+                    const response = await fetch('/api/admin', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-admin-key': ADMIN_KEY
+                        },
+                        body: JSON.stringify({ key })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loadKeys();
+                    } else {
+                        alert('Error deleting key');
+                    }
+                } catch (error) {
+                    alert('Connection error');
+                }
+            }
+        }
+
+        // Загружаем ключи при открытии
+        loadKeys();
+    </script>
+</body>
+</html>
