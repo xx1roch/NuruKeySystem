@@ -1,3 +1,8 @@
 {
-  "type": "module"
+  "name": "nuru-key-system",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev"
+  }
 }
