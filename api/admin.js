@@ -24,7 +24,6 @@ export default async function handler(req, res) {
     if (!key) {
       return res.status(400).json({ error: 'Key required' });
     }
-
     const success = deleteKey(key);
     return res.json({ success });
   }
@@ -34,7 +33,6 @@ export default async function handler(req, res) {
     if (!key) {
       return res.status(400).json({ error: 'Key required' });
     }
-
     const success = updateKey(key, updates);
     return res.json({ success });
   }
