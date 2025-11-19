@@ -1,0 +1,12 @@
+{
+  "name": "nurukey-system",
+  "version": "1.0.0", 
+  "type": "module",
+  "description": "Premium key system for Roblox scripts",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@vercel/node": "^2.0.0"
+  }
+}
